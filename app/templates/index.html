@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Article → Video</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header class="app-header">
+    <h1>Article → Video</h1>
+    <p class="subtitle">文章 → 自动配图 + 旁白 + BGM → 视频</p>
+  </header>
+
+  <main class="container">
+    <!-- Submission form -->
+    <section class="card">
+      <h2>新建任务</h2>
+      <form id="job-form">
+        <label>
+          <span>文章内容</span>
+          <textarea name="article" rows="8" required
+                    placeholder="粘贴文章内容..."></textarea>
+        </label>
+
+        <div class="grid-2">
+          <label>
+            <span>画幅比例</span>
+            <select name="aspect_ratio">
+              <option value="16:9">16:9 横屏</option>
+              <option value="9:16" selected>9:16 竖屏（短视频）</option>
+              <option value="1:1">1:1 方形</option>
+            </select>
+          </label>
+
+          <label>
+            <span>NLP 后端</span>
+            <select name="nlp_backend">
+              <option value="local" selected>local（无需 LLM）</option>
+              <option value="ollama">ollama（本地 LLM）</option>
+              <option value="llm">llm（Claude / OpenAI）</option>
+            </select>
+          </label>
+
+          <label>
+            <span>源语言</span>
+            <input name="source_lang" value="zh" />
+          </label>
+
+          <label>
+            <span>翻译到（留空跳过）</span>
+            <input name="translate_to" placeholder="en / ja / ..." />
+          </label>
+
+          <label>
+            <span>主旁白音色</span>
+            <input name="voice_primary" value="zh-CN-XiaoxiaoNeural" />
+          </label>
+
+          <label>
+            <span>副旁白音色</span>
+            <input name="voice_secondary" value="en-US-AriaNeural" />
+          </label>
+        </div>
+
+        <div class="checkboxes">
+          <label class="cb"><input type="checkbox" name="bgm_enabled" checked /> 启用 BGM</label>
+          <label class="cb"><input type="checkbox" name="burn_subtitles" checked /> 烧录字幕</label>
+        </div>
+
+        <button type="submit" id="submit-btn">提交任务</button>
+      </form>
+    </section>
+
+    <!-- Active job progress -->
+    <section class="card hidden" id="active-section">
+      <h2>当前任务进度</h2>
+      <div class="progress-row">
+        <div class="progress-bar"><div id="progress-fill"></div></div>
+        <span id="progress-pct">0%</span>
+      </div>
+      <dl class="kv">
+        <dt>Job ID</dt><dd id="job-id">—</dd>
+        <dt>状态</dt><dd id="job-status">—</dd>
+        <dt>阶段</dt><dd id="job-stage">—</dd>
+        <dt>情绪</dt><dd id="job-mood">—</dd>
+        <dt>错误</dt><dd id="job-error">—</dd>
+      </dl>
+      <div id="active-actions" class="hidden">
+        <a id="download-mp4" class="btn-link" href="#">⬇️ 下载 MP4</a>
+        <a id="download-srt" class="btn-link" href="#">⬇️ 下载 SRT</a>
+      </div>
+    </section>
+
+    <!-- Past jobs -->
+    <section class="card">
+      <div class="row-between">
+        <h2>历史任务</h2>
+        <button id="refresh-btn" class="btn-secondary">刷新</button>
+      </div>
+      <table class="jobs-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>状态</th>
+            <th>阶段</th>
+            <th>进度</th>
+            <th>情绪</th>
+            <th>创建时间</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="jobs-tbody">
+          <tr><td colspan="7" class="muted">无任务</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <code>POST /jobs · GET /jobs · GET /jobs/&lt;id&gt;/events · /health</code>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

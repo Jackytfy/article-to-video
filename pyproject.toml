@@ -1,0 +1,63 @@
+[project]
+name = "article-to-video"
+version = "0.1.0"
+description = "Article to video pipeline: text -> stock media + TTS + BGM -> rendered MP4"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "pydantic>=2.9.0",
+    "pydantic-settings>=2.6.0",
+    "moviepy>=1.0.3",
+    "ffmpeg-python>=0.2.0",
+    "imageio-ffmpeg>=0.5.1",
+    "edge-tts>=6.1.0",
+    "httpx>=0.27.0",
+    "pillow>=10.4.0",
+    "mutagen>=1.47.0",
+    "python-dotenv>=1.0.1",
+]
+
+[project.optional-dependencies]
+nlp-local = ["spacy>=3.7.0", "jieba>=0.42.1"]
+nlp-llm = ["openai>=1.50.0", "anthropic>=0.39.0"]
+nlp-ollama = ["ollama>=0.3.0"]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "respx>=0.21.0",
+    "ruff>=0.7.0",
+    "mypy>=1.13.0",
+]
+
+[project.scripts]
+a2v = "scripts.run:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app", "scripts"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+pythonpath = ["."]
+markers = [
+    "real_music_factory: opt out of the music-provider monkey-patch (factory tests)",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP", "B", "ASYNC"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+ignore_missing_imports = true

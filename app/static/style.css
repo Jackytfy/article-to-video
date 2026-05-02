@@ -1,0 +1,187 @@
+:root {
+  --bg: #0f1115;
+  --panel: #1a1d24;
+  --panel-2: #232730;
+  --text: #e6e8ec;
+  --muted: #8b93a3;
+  --accent: #4f8cff;
+  --accent-hover: #6ba0ff;
+  --ok: #3ec46d;
+  --err: #ff5d6c;
+  --border: #2a2f3a;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.app-header {
+  padding: 24px 32px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.app-header h1 { margin: 0; font-size: 22px; }
+.subtitle { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px 16px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px 22px;
+}
+.card h2 { margin-top: 0; font-size: 16px; }
+
+label {
+  display: block;
+  margin-bottom: 14px;
+}
+label > span {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+textarea, input[type="text"], input:not([type]), select {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+}
+textarea { resize: vertical; min-height: 120px; }
+textarea:focus, input:focus, select:focus {
+  outline: 0;
+  border-color: var(--accent);
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0 16px;
+}
+@media (max-width: 600px) { .grid-2 { grid-template-columns: 1fr; } }
+
+.checkboxes {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.cb { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-size: 14px; }
+.cb input { width: auto; }
+
+button, .btn-link {
+  display: inline-block;
+  padding: 9px 18px;
+  background: var(--accent);
+  color: #fff;
+  border: 0;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  text-decoration: none;
+}
+button:hover, .btn-link:hover { background: var(--accent-hover); }
+button:disabled { background: #3a4254; cursor: not-allowed; }
+.btn-secondary { background: var(--panel-2); border: 1px solid var(--border); }
+.btn-secondary:hover { background: #2c313d; }
+
+.row-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.progress-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0 16px;
+}
+.progress-bar {
+  flex: 1;
+  height: 8px;
+  background: var(--panel-2);
+  border-radius: 4px;
+  overflow: hidden;
+}
+#progress-fill {
+  height: 100%;
+  width: 0;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+#progress-pct { color: var(--muted); font-size: 13px; min-width: 44px; text-align: right; }
+
+.kv {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 6px 16px;
+  margin: 0;
+  font-size: 13px;
+}
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; word-break: break-all; }
+
+#active-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.hidden { display: none !important; }
+.muted { color: var(--muted); }
+
+.jobs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.jobs-table th, .jobs-table td {
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.jobs-table th { color: var(--muted); font-weight: 500; }
+.jobs-table td.muted { text-align: center; padding: 16px; }
+.tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+}
+.tag.queued   { background: #2c313d; color: var(--muted); }
+.tag.running  { background: #1f3a66; color: #cfdcff; }
+.tag.done     { background: #14422a; color: #cdf3da; }
+.tag.failed   { background: #4d1f24; color: #ffcfd5; }
+
+.app-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 8px 16px;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+  text-align: center;
+  font-size: 11px;
+  color: var(--muted);
+}
+.app-footer code { background: transparent; }

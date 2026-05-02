@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+*.egg
+.eggs/
+
+# Virtual envs
+.venv/
+venv/
+env/
+ENV/
+
+# uv
+uv.lock
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Testing / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Env
+.env
+.env.local
+
+# Project artifacts
+assets/cache/*
+!assets/cache/.gitkeep
+assets/output/*
+!assets/output/.gitkeep
+
+# Logs
+*.log
+logs/
+
+# Temporary media files (root level)
+TEMP_MPY*.mp4
+TEMP_MPY*.mp3
+*TEMP_MPY_wvf_snd.mp4
+
+# Windows specific
+Thumbs.db

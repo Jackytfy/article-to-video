@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          python-version: "3.13"
+      - name: Sync deps (dev only)
+        run: uv pip install --system "ruff>=0.7.0" "mypy>=1.13.0"
+      - name: Ruff
+        run: ruff check app scripts tests
+      - name: Ruff format check
+        run: ruff format --check app scripts tests
+      # mypy is opt-in; uncomment when type annotations stabilize.
+      # - name: mypy
+      #   run: mypy app
+
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          python-version: "3.13"
+
+      - name: Install ffmpeg (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg fonts-noto-cjk
+
+      - name: Install ffmpeg (Windows)
+        if: runner.os == 'Windows'
+        run: choco install -y ffmpeg
+
+      - name: Install project deps
+        run: |
+          uv venv .venv
+          uv pip install fastapi "uvicorn[standard]" "pydantic>=2.9" "pydantic-settings>=2.6"
+          uv pip install moviepy ffmpeg-python imageio-ffmpeg pillow
+          uv pip install edge-tts httpx mutagen python-dotenv
+          uv pip install ollama jieba
+          uv pip install pytest pytest-asyncio respx
+
+      - name: Run tests (skip slow API E2E)
+        env:
+          # API E2E hits real Edge-TTS / ffmpeg; skip in CI by ignoring file.
+          PYTEST_ADDOPTS: "--ignore=tests/test_api.py"
+        run: uv run pytest tests/ -v --tb=short
