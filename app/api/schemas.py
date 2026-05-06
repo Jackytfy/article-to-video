@@ -7,7 +7,16 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 AspectRatio = Literal["16:9", "9:16", "1:1"]
-NLPBackendName = Literal["ollama", "llm", "local"]
+NLPBackendName = Literal[
+    "ollama",     # 本地 Ollama
+    "llm",        # Claude / OpenAI
+    "local",      # jieba+regex 离线
+    "deepseek",   # DeepSeek API
+    "qwen",       # 通义千问
+    "zhipu",      # 智谱 GLM
+    "spark",      # 讯飞星火
+    "wenxin",     # 百度文心
+]
 
 
 class JobCreate(BaseModel):

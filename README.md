@@ -45,7 +45,7 @@ uv run uvicorn app.main:app --reload
 python -m scripts.run \
   --article path/to/article.txt \
   --aspect 16:9 \                  # 16:9 | 9:16 | 1:1
-  --backend ollama \               # ollama | llm | local
+  --backend ollama \               # ollama | llm | local | deepseek | qwen | zhipu | spark | wenxin
   --source-lang zh \
   --translate-to en \
   --no-bgm                         # disable music

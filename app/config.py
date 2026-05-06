@@ -8,7 +8,16 @@ from typing import Literal
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-NLPBackend = Literal["ollama", "llm", "local"]
+NLPBackend = Literal[
+    "ollama",       # 本地 Ollama 服务器
+    "llm",          # Claude/OpenAI (通过 .env 配置)
+    "local",        # 本地 jieba+regex (离线)
+    "deepseek",     # DeepSeek API
+    "qwen",         # 通义千问 (阿里云 DashScope)
+    "zhipu",        # 智谱 GLM
+    "spark",        # 讯飞星火
+    "ernie",        # 百度文心一言
+]
 AspectRatio = Literal["16:9", "9:16", "1:1"]
 
 
@@ -54,6 +63,30 @@ class Settings(BaseSettings):
     # Ollama
     ollama_host: str = "http://localhost:11434"
     ollama_model: str = "qwen2.5:7b"
+
+    # DeepSeek API
+    deepseek_api_key: str | None = None
+    deepseek_base_url: str = "https://api.deepseek.com"
+    deepseek_model: str = "deepseek-chat"
+
+    # 通义千问 (阿里云 DashScope)
+    dashscope_api_key: str | None = None
+    qwen_model: str = "qwen-turbo"
+
+    # 智谱 GLM
+    zhipu_api_key: str | None = None
+    zhipu_model: str = "glm-4"
+
+    # 讯飞星火
+    spark_app_id: str | None = None
+    spark_api_key: str | None = None
+    spark_api_secret: str | None = None
+    spark_model: str = "generalv3.5"
+
+    # 百度文心一言
+    wenxin_api_key: str | None = None
+    wenxin_secret_key: str | None = None
+    wenxin_model: str = "ernie-4.0-8k-latest"
 
     # Paths
     cache_dir: Path = Field(default=Path("./assets/cache"))

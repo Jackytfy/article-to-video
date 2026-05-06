@@ -34,7 +34,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--backend",
-        choices=["ollama", "llm", "local"],
+        choices=["ollama", "llm", "local", "deepseek", "qwen", "zhipu", "spark", "wenxin"],
         default=None,
         help="NLP backend. Defaults from .env.",
     )
