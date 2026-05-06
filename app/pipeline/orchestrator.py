@@ -16,6 +16,7 @@ from app.pipeline.media import make_providers
 from app.pipeline.media.base import MediaProvider
 from app.pipeline.media.cache import MediaCache
 from app.pipeline.media.ranker import aspect_to_orientation, rank_assets
+from app.pipeline.media.semantic import SemanticSearchEnhancer
 from app.pipeline.models import Job, JobStage, JobStatus, MediaAsset, Orientation, Segment
 from app.pipeline.music import make_providers as make_music_providers
 from app.pipeline.music.base import MusicProvider, MusicTrack
@@ -57,6 +58,8 @@ class PipelineOrchestrator:
         self._srt_path: Path | None = None
         self._cues: list[SubtitleCue] = []
         self._bgm_track: MusicTrack | None = None
+        # Semantic search enhancer for better video matching
+        self._semantic = SemanticSearchEnhancer()
 
     async def run(self, job: Job) -> Job:
         job.status = JobStatus.RUNNING
@@ -208,9 +211,25 @@ class PipelineOrchestrator:
         providers: list[MediaProvider],
         orientation: Orientation,
     ) -> MediaAsset | None:
-        keywords = list(segment.keywords)
+        # Use semantic enhancer to generate better search keywords
+        original_keywords = list(segment.keywords)
+        enhanced_keywords = self._semantic.generate_keywords(
+            segment.text, segment.index
+        )
+
+        # Prefer enhanced keywords but keep some original
+        keywords = enhanced_keywords if enhanced_keywords else original_keywords
         if not keywords:
             return None
+
+        # Determine preferred media type based on content
+        video_type = self._semantic.suggest_video_type(segment.text, keywords)
+        logger.info(
+            "Segment %d: keywords=%s (type=%s)",
+            segment.index,
+            keywords[:3],
+            video_type,
+        )
 
         searches = []
         for p in providers:
@@ -218,8 +237,10 @@ class PipelineOrchestrator:
             if callable(search_both):
                 searches.append(search_both(keywords, orientation))
             else:
-                searches.append(p.search(keywords, orientation, "image"))
-                searches.append(p.search(keywords, orientation, "video"))
+                if video_type in ("image", "both"):
+                    searches.append(p.search(keywords, orientation, "image"))
+                if video_type in ("video", "both"):
+                    searches.append(p.search(keywords, orientation, "video"))
 
         results = await asyncio.gather(*searches, return_exceptions=True)
         all_assets: list[MediaAsset] = []
@@ -234,7 +255,16 @@ class PipelineOrchestrator:
             return None
 
         ranked = rank_assets(all_assets, keywords, orientation)  # type: ignore[arg-type]
-        return ranked[0]
+        chosen = ranked[0]
+        logger.info(
+            "Selected %s for segment %d: %s (%dx%d)",
+            chosen.media_type,
+            segment.index,
+            chosen.url[:60],
+            chosen.width,
+            chosen.height,
+        )
+        return chosen
 
     # ---- Stage: TTS ---------------------------------------------------------
 
