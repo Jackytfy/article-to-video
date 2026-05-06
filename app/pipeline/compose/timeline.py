@@ -42,6 +42,7 @@ def compose_video(
     font_path: str | None = None,
     bgm_path: Path | None = None,
     bgm_gain: float = 0.10,
+    gap_between_segments: float = 0.15,
 ) -> Any:
     """Build a CompositeVideoClip ready for write_videofile().
 
@@ -68,6 +69,11 @@ def compose_video(
     visual_clips: list[Any] = []
     audio_clips: list[Any] = []
     cursor_s = 0.0
+    gap = gap_between_segments
+
+    # Add brief silence at start for natural feel
+    if gap > 0:
+        cursor_s = gap
 
     for seg in segments:
         result = tts_results.get(seg.index)
@@ -80,7 +86,7 @@ def compose_video(
 
         visual = _build_segment_visual(
             asset=asset,
-            duration_s=duration_s,
+            duration_s=duration_s + gap,  # Extend visual slightly for gap
             target_w=target_w,
             target_h=target_h,
             aspect=aspect,
@@ -89,7 +95,7 @@ def compose_video(
 
         audio_clip = AudioFileClip(str(result.audio_path))
         audio_clips.append(audio_clip.with_start(cursor_s))
-        cursor_s += duration_s
+        cursor_s += duration_s + gap
 
     if not visual_clips:
         raise RuntimeError("compose_video: no segments produced visual clips")
@@ -135,7 +141,7 @@ def _build_bgm_layer(
         logger.warning("BGM load failed (%s): %s", bgm_path, exc)
         return None
 
-    bgm_duration = bgm.duration or 0
+    bgm_duration = float(bgm.duration) if isinstance(bgm.duration, (int, float)) else 0
     if bgm_duration <= 0:
         bgm.close()
         return None
@@ -168,11 +174,12 @@ def _build_segment_visual(
     src_path = asset.local_path
     if asset.media_type == "video":
         clip = VideoFileClip(str(src_path), audio=False)
-        if clip.duration < duration_s:
+        clip_duration = float(clip.duration) if isinstance(clip.duration, (int, float)) else 0.0
+        if clip_duration < duration_s:
             # Loop short clips by self-concatenation.
             from moviepy import concatenate_videoclips
 
-            loops = int(duration_s / clip.duration) + 1
+            loops = int(duration_s / clip_duration) + 1
             clip = concatenate_videoclips([clip] * loops).subclipped(0, duration_s)
         else:
             clip = clip.subclipped(0, duration_s)

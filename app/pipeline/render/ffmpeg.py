@@ -1,7 +1,7 @@
 """FFmpeg render profiles via MoviePy `write_videofile`.
 
 Two profiles:
-- libx264 + aac (default): 6 Mbps, medium preset
+- libx264 + aac (default): 4 Mbps, fast preset (optimized for speed)
 - NVENC (use_gpu=True): h264_nvenc, fast preset
 
 Notes:
@@ -22,16 +22,16 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_TIMEOUT_S = 15 * 60  # 15 min ceiling for any single render.
+_DEFAULT_TIMEOUT_S = 30 * 60  # 30 min ceiling for any single render (increased for long videos).
 
 
 def render_clip(
     clip: Any,
     output_path: Path,
     *,
-    fps: int = 30,
+    fps: int = 25,
     use_gpu: bool = False,
-    threads: int = 4,
+    threads: int = 0,  # 0 = auto-detect optimal thread count
     timeout_s: float = _DEFAULT_TIMEOUT_S,
 ) -> Path:
     """Render a MoviePy clip to MP4. Returns the output path.
@@ -40,8 +40,14 @@ def render_clip(
     """
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
+    # Auto-detect CPU cores if threads=0
+    if threads <= 0:
+        import multiprocessing
+        threads = min(multiprocessing.cpu_count(), 8)
+
     codec = "h264_nvenc" if use_gpu else "libx264"
-    preset = "fast" if use_gpu else "medium"
+    # Use faster preset for CPU encoding to reduce render time
+    preset = "fast" if use_gpu else "veryfast"
 
     duration = getattr(clip, "duration", None)
     audio = getattr(clip, "audio", None)
@@ -104,7 +110,8 @@ def _do_write(
         audio_codec="aac",
         preset=preset,
         threads=threads,
-        bitrate="6M",
+        bitrate="4M",  # Reduced from 6M for faster encoding
+        audio_bitrate="128k",  # Good quality audio at reasonable size
         ffmpeg_params=["-pix_fmt", "yuv420p"],
         # Use the default proglog "bar" — None deadlocks on some MoviePy 2.x builds.
         logger="bar",

@@ -8,7 +8,7 @@ import asyncio
 import logging
 from dataclasses import replace
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from app.config import get_settings
 from app.pipeline.compose.aspect import AspectRatio
@@ -16,7 +16,7 @@ from app.pipeline.media import make_providers
 from app.pipeline.media.base import MediaProvider
 from app.pipeline.media.cache import MediaCache
 from app.pipeline.media.ranker import aspect_to_orientation, rank_assets
-from app.pipeline.models import Job, JobStage, JobStatus, MediaAsset, Segment
+from app.pipeline.models import Job, JobStage, JobStatus, MediaAsset, Orientation, Segment
 from app.pipeline.music import make_providers as make_music_providers
 from app.pipeline.music.base import MusicProvider, MusicTrack
 from app.pipeline.nlp import make_backend
@@ -175,7 +175,7 @@ class PipelineOrchestrator:
             return
 
         cache = self._cache or MediaCache(get_settings().cache_dir)
-        orientation = aspect_to_orientation(job.aspect_ratio)
+        orientation: Orientation = aspect_to_orientation(job.aspect_ratio)
 
         total = len(job.segments)
         for i, segment in enumerate(job.segments):
@@ -206,7 +206,7 @@ class PipelineOrchestrator:
         self,
         segment: Segment,
         providers: list[MediaProvider],
-        orientation: str,
+        orientation: Orientation,
     ) -> MediaAsset | None:
         keywords = list(segment.keywords)
         if not keywords:
@@ -227,7 +227,8 @@ class PipelineOrchestrator:
             if isinstance(r, Exception):
                 logger.warning("Provider search error: %s", r)
                 continue
-            all_assets.extend(r)
+            if isinstance(r, list):
+                all_assets.extend(r)
 
         if not all_assets:
             return None
@@ -348,7 +349,7 @@ class PipelineOrchestrator:
         compose_fn = self._compose_fn or default_compose
         render_fn = self._render_fn or default_render
 
-        aspect: AspectRatio = job.aspect_ratio  # type: ignore[assignment]
+        aspect: AspectRatio = cast(AspectRatio, job.aspect_ratio)
         bgm_path = self._bgm_track.local_path if self._bgm_track else None
 
         clip = await asyncio.to_thread(
@@ -362,6 +363,7 @@ class PipelineOrchestrator:
             None,        # font_path: rely on default resolver
             bgm_path,    # bgm_path
             0.10,        # bgm_gain (~ -20dB)
+            0.15,        # gap_between_segments (150ms silence)
         )
 
         try:
