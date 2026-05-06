@@ -173,4 +173,10 @@ els.form.addEventListener("submit", async (ev) => {
 els.refreshBtn.addEventListener("click", refreshList);
 
 refreshList();
-setInterval(refreshList, 5000);
+// 降低轮询频率：10 秒而不是 5 秒，减少服务器压力
+setInterval(refreshList, 10000);
+
+// 如果 SSE 连接活跃，暂停列表刷新（SSE 会更高效地推送更新）
+if (activeEventSource) {
+  clearInterval(refreshList);
+}

@@ -98,7 +98,7 @@ async def stream_events(job_id: str) -> StreamingResponse:
         raise HTTPException(status_code=404, detail="job not found")
 
     async def event_source() -> AsyncIterator[bytes]:
-        async for j in store.watch(job_id, poll_interval_s=10.0):
+        async for j in store.watch(job_id, poll_interval_s=1.0):
             payload = _job_to_status(j).model_dump(mode="json")
             yield f"event: progress\ndata: {json.dumps(payload)}\n\n".encode()
             if j.status in (JobStatus.DONE, JobStatus.FAILED):
