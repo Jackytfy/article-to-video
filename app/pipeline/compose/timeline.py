@@ -91,6 +91,11 @@ def compose_video(
             target_h=target_h,
             aspect=aspect,
         )
+        # Force consistent fps so we can use method="chain" (much faster)
+        try:
+            visual = visual.with_fps(25)
+        except Exception:
+            pass
         visual_clips.append(visual)
 
         audio_clip = AudioFileClip(str(result.audio_path))
@@ -100,7 +105,14 @@ def compose_video(
     if not visual_clips:
         raise RuntimeError("compose_video: no segments produced visual clips")
 
-    base_video = concatenate_videoclips(visual_clips, method="compose")
+    # Use "chain" if all clips share the same size (much faster than "compose")
+    use_chain = all(
+        getattr(c, "w", 0) == target_w and getattr(c, "h", 0) == target_h
+        for c in visual_clips
+    )
+    concat_method = "chain" if use_chain else "compose"
+    logger.info("Concatenating %d visual clips with method=%s", len(visual_clips), concat_method)
+    base_video = concatenate_videoclips(visual_clips, method=concat_method)
     total_duration_s = cursor_s
 
     audio_layers: list[Any] = list(audio_clips)

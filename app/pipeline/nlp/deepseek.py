@@ -38,6 +38,17 @@ class DeepSeekNLPBackend:
             f"Target: each chunk reads aloud in roughly {target_seconds_per_seg} seconds "
             "(about 25-40 Chinese characters or 15-25 English words).\n"
             "Preserve original wording. Maintain order.\n\n"
+            "IMPORTANT for keywords:\n"
+            "- Extract 3-5 visually concrete ENGLISH keywords per segment\n"
+            "- Keywords should describe scenes, objects, environments that can be "
+            "found as stock video footage\n"
+            "- Think about what VIDEO CLIP would match this text\n"
+            "- Examples: for '秦始皇统一六国' use ['qin dynasty', 'ancient china war', "
+            "'emperor', 'terracotta warriors']\n"
+            "- For '宇宙中的黑洞' use ['black hole', 'space', 'galaxy', 'cosmos']\n"
+            "- For '人工智能改变生活' use ['artificial intelligence', 'robot', "
+            "'smart technology', 'futuristic']\n"
+            "- Avoid abstract concepts; prefer concrete visual terms\n\n"
             f"Article:\n{article}"
         )
         response = await self._client.chat.completions.create(
@@ -76,7 +87,11 @@ class DeepSeekNLPBackend:
         prompt = (
             f'Please respond ONLY with valid JSON: {{"keywords": ["kw1", "kw2"]}}\n\n'
             f"Extract {top_k} visually concrete English keywords from this text "
-            "for stock-image search.\n\n"
+            "for stock-video search.\n"
+            "Keywords should describe specific scenes, objects, or environments "
+            "that would appear as video footage.\n"
+            "Think about what REAL VIDEO CLIP would match this text.\n"
+            "Prefer concrete visual terms over abstract concepts.\n\n"
             f"Text: {segment.text}"
         )
         response = await self._client.chat.completions.create(

@@ -149,10 +149,82 @@ def write_srt(cues: Iterable[SubtitleCue], path: Path) -> Path:
     return path
 
 
+def _format_ts_ass(ms: int) -> str:
+    """ASS timestamp: H:MM:SS.cc (centiseonds)."""
+    if ms < 0:
+        ms = 0
+    h, ms = divmod(ms, 3_600_000)
+    m, ms = divmod(ms, 60_000)
+    s, ms = divmod(ms, 1_000)
+    cs = ms // 10  # centiseconds
+    return f"{h}:{m:02d}:{s:02d}.{cs:02d}"
+
+
+def render_ass(
+    cues: Iterable[SubtitleCue],
+    target_w: int,
+    target_h: int,
+    font_name: str = "Microsoft YaHei",
+    font_size: int = 36,
+) -> str:
+    """Render cues as ASS (Advanced SubStation Alpha) subtitle content.
+
+    The ASS file can be used with FFmpeg's `subtitles` filter for fast
+    subtitle burning without MoviePy TextClips.
+    """
+    # Alignment=2 means bottom-center (num pad position)
+    # MarginV is the distance from the bottom in pixels
+    lines = [
+        "[Script Info]",
+        "Script Type: v4.00+",
+        "Title: Article-to-Video Subtitles",
+        f"PlayResX: {target_w}",
+        f"PlayResY: {target_h}",
+        "",
+        "[V4+ Styles]",
+        "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, "
+        "OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, "
+        "ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, "
+        "Alignment, MarginL, MarginR, MarginV, Encoding",
+        f"Style: Default,{font_name},{font_size},"
+        "&H00FFFFFF,&H000000FF,&H00000000,&H80000000,"  # colours (AABBGGRR)
+        "-1,0,0,0,100,100,0,0,1,2,1,2,"
+        "0,10,10,30,1",  # Alignment=2 (bottom-center), MarginV=30
+        "",
+        "[Events]",
+        "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
+    ]
+
+    for cue in cues:
+        start = _format_ts_ass(cue.start_ms)
+        end = _format_ts_ass(cue.end_ms)
+        # Escape ASS special chars: comma, newline
+        text = cue.text.replace("\\", "\\\\").replace("{", "\\{").replace("}", "\\}")
+        lines.append(f"Dialogue: 0,{start},{end},Default,,0,0,0,,{text}")
+
+    return "\n".join(lines)
+
+
+def write_ass(
+    cues: Iterable[SubtitleCue],
+    path: Path,
+    target_w: int,
+    target_h: int,
+) -> Path:
+    """Write ASS subtitle file. Returns the path."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        render_ass(cues, target_w, target_h), encoding="utf-8-sig"
+    )
+    return path
+
+
 __all__ = [
     "SubtitleCue",
     "build_cues",
     "render_srt",
     "write_srt",
+    "render_ass",
+    "write_ass",
     "group_words_for_segment",
 ]

@@ -54,3 +54,10 @@ TEMP_MPY*.mp3
 
 # Windows specific
 Thumbs.db
+
+# Temporary test/diagnostic scripts
+diagnose_render.py
+run_test.bat
+test_fast.py
+test_full_render.py
+test_optimizations.py

@@ -44,6 +44,7 @@ class PixabayProvider:
         orientation: Orientation,
         media_type: MediaType,
         limit: int = 10,
+        lang: str | None = None,
     ) -> list[MediaAsset]:
         if not keywords:
             return []
@@ -51,21 +52,26 @@ class PixabayProvider:
         query = "+".join(keywords[:3])  # Pixabay uses + for AND
         async with httpx.AsyncClient(timeout=self._timeout_s) as client:
             if media_type == "video":
-                return await self._search_videos(client, query, orientation, limit)
-            return await self._search_images(client, query, orientation, limit)
+                return await self._search_videos(
+                    client, query, orientation, limit, lang=lang
+                )
+            return await self._search_images(
+                client, query, orientation, limit, lang=lang
+            )
 
     async def search_both(
         self,
         keywords: list[str],
         orientation: Orientation,
         limit_each: int = 8,
+        lang: str | None = None,
     ) -> list[MediaAsset]:
         """Convenience: fetch images and videos in parallel."""
         if not keywords:
             return []
         videos, images = await asyncio.gather(
-            self.search(keywords, orientation, "video", limit_each),
-            self.search(keywords, orientation, "image", limit_each),
+            self.search(keywords, orientation, "video", limit_each, lang=lang),
+            self.search(keywords, orientation, "image", limit_each, lang=lang),
             return_exceptions=True,
         )
         out: list[MediaAsset] = []
@@ -84,8 +90,9 @@ class PixabayProvider:
         query: str,
         orientation: Orientation,
         limit: int,
+        lang: str | None = None,
     ) -> list[MediaAsset]:
-        params = {
+        params: dict[str, Any] = {
             "key": self._api_key,
             "q": query,
             "orientation": _PIXABAY_ORIENTATION[orientation],
@@ -93,6 +100,8 @@ class PixabayProvider:
             "per_page": max(3, min(limit, 200)),
             "safesearch": "true",
         }
+        if lang:
+            params["lang"] = lang
         resp = await client.get(_IMG_BASE, params=params)
         resp.raise_for_status()
         return [self._image_to_asset(item) for item in resp.json().get("hits", [])]
@@ -103,14 +112,17 @@ class PixabayProvider:
         query: str,
         orientation: Orientation,
         limit: int,
+        lang: str | None = None,
     ) -> list[MediaAsset]:
-        params = {
+        params: dict[str, Any] = {
             "key": self._api_key,
             "q": query,
             "video_type": "all",
             "per_page": max(3, min(limit, 200)),
             "safesearch": "true",
         }
+        if lang:
+            params["lang"] = lang
         # Pixabay video API does not support orientation. We post-filter.
         resp = await client.get(_VID_BASE, params=params)
         resp.raise_for_status()

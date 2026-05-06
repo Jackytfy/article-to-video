@@ -55,6 +55,11 @@ class Settings(BaseSettings):
     # Music providers
     jamendo_client_id: str | None = None
 
+    # Web recorder (yt-dlp + Playwright)
+    web_recorder_enabled: bool = False
+    web_recorder_mode: str = "auto"  # auto | ytdlp | playwright
+    web_recorder_max_duration: int = 15
+
     # LLM
     openai_api_key: str | None = None
     anthropic_api_key: str | None = None

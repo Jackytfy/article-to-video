@@ -13,6 +13,8 @@ def make_providers(settings: Settings | None = None) -> list[MediaProvider]:
     """Return all configured providers (those with API keys set).
 
     Order matters for ranking ties: earlier = preferred.
+    Web-recorder is appended last so stock providers take priority,
+    but it's always available (no API key needed).
     """
     settings = settings or get_settings()
     providers: list[MediaProvider] = []
@@ -31,6 +33,14 @@ def make_providers(settings: Settings | None = None) -> list[MediaProvider]:
         from app.pipeline.media.unsplash import UnsplashProvider
 
         providers.append(UnsplashProvider(access_key=settings.unsplash_access_key))
+
+    if settings.web_recorder_enabled:
+        from app.pipeline.media.web_recorder import WebRecorderProvider
+
+        providers.append(WebRecorderProvider(
+            max_duration_s=settings.web_recorder_max_duration,
+            mode=settings.web_recorder_mode,
+        ))
 
     return providers
 

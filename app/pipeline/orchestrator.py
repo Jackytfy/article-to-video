@@ -91,6 +91,8 @@ class PipelineOrchestrator:
             job.error = str(exc)
             logger.exception("Job %s failed", job.id)
         finally:
+            # Cleanup web-recorder temp files
+            self._cleanup_web_recorders()
             await self._touch(job)
 
         return job
@@ -191,10 +193,14 @@ class PipelineOrchestrator:
                 )
                 continue
 
-            local_path = await cache.fetch(asset.url)
-            self._segment_assets[segment.index] = replace(
-                asset, local_path=local_path
-            )
+            # Web-recorder assets already have local_path set (downloaded during search)
+            if asset.local_path and asset.local_path.exists():
+                self._segment_assets[segment.index] = asset
+            else:
+                local_path = await cache.fetch(asset.url)
+                self._segment_assets[segment.index] = replace(
+                    asset, local_path=local_path
+                )
 
             job.progress = 0.2 + 0.2 * ((i + 1) / total)
             await self._touch(job)
@@ -211,9 +217,9 @@ class PipelineOrchestrator:
         providers: list[MediaProvider],
         orientation: Orientation,
     ) -> MediaAsset | None:
-        # Use semantic enhancer to generate better search keywords
+        # Use semantic enhancer to generate better search keywords (async for LLM)
         original_keywords = list(segment.keywords)
-        enhanced_keywords = self._semantic.generate_keywords(
+        enhanced_keywords = await self._semantic.generate_keywords_async(
             segment.text, segment.index
         )
 
@@ -222,12 +228,16 @@ class PipelineOrchestrator:
         if not keywords:
             return None
 
+        # Also generate Chinese keywords for Pixabay's lang=zh mode
+        zh_keywords = self._semantic.extract_chinese_keywords(segment.text)
+
         # Determine preferred media type based on content
         video_type = self._semantic.suggest_video_type(segment.text, keywords)
         logger.info(
-            "Segment %d: keywords=%s (type=%s)",
+            "Segment %d: keywords=%s, zh_keywords=%s (type=%s)",
             segment.index,
             keywords[:3],
+            zh_keywords[:3] if zh_keywords else [],
             video_type,
         )
 
@@ -235,12 +245,32 @@ class PipelineOrchestrator:
         for p in providers:
             search_both = getattr(p, "search_both", None)
             if callable(search_both):
-                searches.append(search_both(keywords, orientation))
+                # Pixabay supports lang parameter for Chinese search
+                if p.name == "pixabay" and zh_keywords:
+                    searches.append(search_both(
+                        keywords, orientation, lang="zh"
+                    ))
+                    # Also search with Chinese keywords for better local results
+                    searches.append(search_both(
+                        zh_keywords, orientation, lang="zh"
+                    ))
+                else:
+                    searches.append(search_both(keywords, orientation))
             else:
                 if video_type in ("image", "both"):
-                    searches.append(p.search(keywords, orientation, "image"))
+                    if p.name == "pixabay" and zh_keywords:
+                        searches.append(p.search(
+                            keywords, orientation, "image", lang="zh"
+                        ))
+                    else:
+                        searches.append(p.search(keywords, orientation, "image"))
                 if video_type in ("video", "both"):
-                    searches.append(p.search(keywords, orientation, "video"))
+                    if p.name == "pixabay" and zh_keywords:
+                        searches.append(p.search(
+                            keywords, orientation, "video", lang="zh"
+                        ))
+                    else:
+                        searches.append(p.search(keywords, orientation, "video"))
 
         results = await asyncio.gather(*searches, return_exceptions=True)
         all_assets: list[MediaAsset] = []
@@ -312,13 +342,23 @@ class PipelineOrchestrator:
         cues = build_cues(job.segments, self._tts_results)
         self._cues = cues
 
+        # Generate SRT for API download endpoint
         srt_path = self._tts_dir(job) / "captions.srt"
         write_srt(cues, srt_path)
         self._srt_path = srt_path
 
+        # Generate ASS for optimized video rendering (10-100x faster than TextClips)
+        from app.pipeline.compose.timeline import target_dimensions
+        from app.pipeline.subtitle.srt import write_ass
+        aspect: AspectRatio = cast(AspectRatio, job.aspect_ratio)
+        target_w, target_h = target_dimensions(aspect)
+        ass_path = self._tts_dir(job) / f"{job.id}.ass"
+        write_ass(cues, ass_path, target_w, target_h)
+        self._ass_path = ass_path
+
         job.progress = 0.75
         await self._touch(job)
-        logger.info("Subtitles built: %d cues -> %s", len(cues), srt_path)
+        logger.info("Subtitles built: %d cues -> SRT: %s, ASS: %s", len(cues), srt_path, ass_path)
 
     # ---- Stage: Music --------------------------------------------------------
 
@@ -382,6 +422,13 @@ class PipelineOrchestrator:
         aspect: AspectRatio = cast(AspectRatio, job.aspect_ratio)
         bgm_path = self._bgm_track.local_path if self._bgm_track else None
 
+        # Use pre-generated ASS file (created in _run_subtitles for speed)
+        ass_path: Path | None = getattr(self, '_ass_path', None)
+        if ass_path and ass_path.exists():
+            logger.info("Using pre-generated ASS subtitles: %s", ass_path)
+        else:
+            logger.warning("ASS subtitles not found, will not burn subtitles via FFmpeg")
+
         clip = await asyncio.to_thread(
             compose_fn,
             job.segments,
@@ -389,11 +436,11 @@ class PipelineOrchestrator:
             self._tts_results,
             self._cues,
             aspect,
-            job.burn_subtitles,
-            None,        # font_path: rely on default resolver
-            bgm_path,    # bgm_path
-            0.10,        # bgm_gain (~ -20dB)
-            0.15,        # gap_between_segments (150ms silence)
+            False,       # burn_subtitles: False — will burn via FFmpeg instead
+            None,        # font_path
+            bgm_path,
+            0.10,
+            0.15,
         )
 
         try:
@@ -409,7 +456,8 @@ class PipelineOrchestrator:
                 output_path,
                 fps=30,
                 use_gpu=settings.use_gpu,
-                threads=4,
+                threads=0,  # 0 = auto-detect CPU cores (faster for libx264)
+                ass_path=ass_path,  # Pass ASS file for FFmpeg burning
             )
             job.output_path = output_path
             logger.info("Render done: %s", output_path)
@@ -419,6 +467,15 @@ class PipelineOrchestrator:
                 close()
 
     # ---- Helpers ------------------------------------------------------------
+
+    def _cleanup_web_recorders(self) -> None:
+        """Clean up temporary files from WebRecorderProvider instances."""
+        from app.pipeline.media.web_recorder import WebRecorderProvider
+
+        if self._media_providers:
+            for p in self._media_providers:
+                if isinstance(p, WebRecorderProvider):
+                    p.cleanup()
 
     def _tts_dir(self, job: Job) -> Path:
         if self._work_dir is not None:
